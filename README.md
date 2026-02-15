@@ -3,6 +3,17 @@
 Record, send, and transcribe voice messages in Mattermost.
 Compatible with **Mattermost v9.5+ / v10 / v11**.
 
+## Preview
+
+### Browser
+
+<img src="preview.gif" width="500">
+
+### Mobile
+
+<img src="preview_mobile.gif" width="200">
+
+
 ## Features
 
 - **3 ways to record**: button in message toolbar (+), channel header icon, `/voice` or `/audiomsg` command
