@@ -1,4 +1,4 @@
-module github.com/scientia-tech/mattermost-plugin-voice-message
+module github.com/WismutNaN/mattermost-plugin-voice-message
 
 go 1.22
 

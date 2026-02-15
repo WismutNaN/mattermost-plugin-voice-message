@@ -45,8 +45,9 @@ type mobileToken struct {
 // Plugin implements plugin.MattermostPlugin.
 type Plugin struct {
 	plugin.MattermostPlugin
-	configLock    sync.RWMutex
-	configuration *Configuration
+	configLock       sync.RWMutex
+	configuration    *Configuration
+	transcribeSem    chan struct{} // limits concurrent auto-transcribe goroutines
 }
 
 // Configuration from System Console settings.
@@ -163,6 +164,7 @@ func (p *Plugin) OnActivate() error {
 	if err := p.registerSlashCommands(); err != nil {
 		return err
 	}
+	p.transcribeSem = make(chan struct{}, 2) // max 2 concurrent auto-transcriptions
 	p.API.LogInfo("Voice Message plugin activated", "version", "2.0.0")
 	return nil
 }
@@ -515,8 +517,19 @@ func (p *Plugin) handleTranscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 // autoTranscribe is called in a goroutine after upload if AutoTranscribe is enabled.
+// Uses a semaphore to limit concurrent transcriptions and prevent OOM.
 func (p *Plugin) autoTranscribe(postID, fileID string, data []byte, mimeType string) {
-	time.Sleep(500 * time.Millisecond) // small delay to let post settle
+	// Non-blocking acquire: if too many transcriptions in flight, skip.
+	select {
+	case p.transcribeSem <- struct{}{}:
+		// acquired
+	default:
+		p.API.LogWarn("Auto-transcribe skipped: too many in flight", "post_id", postID)
+		return
+	}
+	defer func() { <-p.transcribeSem }()
+
+	time.Sleep(500 * time.Millisecond)
 
 	cfg := p.getConfig()
 	if !cfg.EnableTranscription || strings.TrimSpace(cfg.TranscriptionAPIKey) == "" {
@@ -524,6 +537,9 @@ func (p *Plugin) autoTranscribe(postID, fileID string, data []byte, mimeType str
 	}
 
 	transcript, err := p.callWhisperAPI(data, mimeType, cfg.TranscriptionProvider)
+	// Release audio data from this goroutine's scope immediately.
+	data = nil
+
 	if err != nil {
 		p.API.LogError("Auto-transcription failed", "post_id", postID, "err", err.Error())
 		return
@@ -582,11 +598,11 @@ func (p *Plugin) callWhisperAPI(audioData []byte, mimeType string, provider stri
 	)
 
 	var lastErr error
-	maxAttempts := 3
+	maxAttempts := 2
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if attempt > 1 {
-			delay := time.Duration(attempt) * 2 * time.Second
+			delay := time.Duration(attempt) * time.Second
 			p.API.LogInfo("Transcription retry", "attempt", attempt, "delay", delay.String())
 			time.Sleep(delay)
 		}
@@ -647,11 +663,13 @@ func (p *Plugin) doWhisperRequest(apiURL, apiKey, fieldName, filename, modelName
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		// Network / timeout errors are retryable.
-		return "", true, fmt.Errorf("network: %w", err)
+		// EOF means the server closed connection — likely down, don't retry.
+		errMsg := err.Error()
+		retryable := !strings.Contains(errMsg, "EOF")
+		return "", retryable, fmt.Errorf("network: %w", err)
 	}
 	defer resp.Body.Close()
 
