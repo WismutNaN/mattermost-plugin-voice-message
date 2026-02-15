@@ -1,0 +1,121 @@
+{
+    "id": "com.scientia.voice-message",
+    "name": "Voice Message",
+    "description": "Record and send voice messages in Mattermost with optional AI transcription.",
+    "version": "2.0.0",
+    "homepage_url": "https://github.com/scientia-tech/mattermost-plugin-voice-message",
+    "support_url": "https://github.com/scientia-tech/mattermost-plugin-voice-message/issues",
+    "icon_path": "assets/icon.svg",
+    "min_server_version": "9.5.0",
+    "server": {
+        "executables": {
+            "linux-amd64": "server/dist/plugin-linux-amd64",
+            "linux-arm64": "server/dist/plugin-linux-arm64",
+            "darwin-amd64": "server/dist/plugin-darwin-amd64",
+            "darwin-arm64": "server/dist/plugin-darwin-arm64",
+            "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+        }
+    },
+    "webapp": {
+        "bundle_path": "webapp/dist/main.js"
+    },
+    "settings_schema": {
+        "header": "### Voice Message Plugin\nConfigure recording limits, mobile access, and AI-powered transcription.",
+        "footer": "Voice Message Plugin v2.0 by [Scientia Technologies](https://scientia.kz)",
+        "settings": [
+            {
+                "key": "MaxRecordingDurationSeconds",
+                "display_name": "Maximum Recording Duration (seconds)",
+                "type": "text",
+                "default": "600",
+                "help_text": "Maximum voice message duration in seconds. Default: 600 (10 minutes). Users will see a countdown timer."
+            },
+            {
+                "key": "MaxFileSizeMB",
+                "display_name": "Maximum File Size (MB)",
+                "type": "text",
+                "default": "50",
+                "help_text": "Maximum uploaded audio file size in megabytes. Should not exceed your Mattermost server's `MaxFileSize` setting. Default: 50 MB."
+            },
+            {
+                "key": "MobileTokenTTLSeconds",
+                "display_name": "Mobile Recorder Link TTL (seconds)",
+                "type": "text",
+                "default": "900",
+                "help_text": "How long the one-time mobile recorder link remains valid before expiring. Default: 900 (15 minutes)."
+            },
+            {
+                "key": "AllowedRoles",
+                "display_name": "Allowed Roles",
+                "type": "dropdown",
+                "default": "all",
+                "help_text": "Which users are allowed to record and send voice messages.",
+                "options": [
+                    {"display_name": "All Users", "value": "all"},
+                    {"display_name": "System & Team Admins Only", "value": "admins"}
+                ]
+            },
+            {
+                "key": "EnableTranscription",
+                "display_name": "Enable Transcription",
+                "type": "bool",
+                "default": "false",
+                "help_text": "When enabled, voice messages will show a 'Transcribe' button that sends audio to the configured Whisper-compatible API for speech-to-text."
+            },
+            {
+                "key": "TranscriptionProvider",
+                "display_name": "Transcription Provider",
+                "type": "dropdown",
+                "default": "deepinfra",
+                "help_text": "Select the speech-to-text backend. All providers must expose an OpenAI-compatible /v1/audio/transcriptions endpoint.",
+                "options": [
+                    {"display_name": "DeepInfra (Whisper)", "value": "deepinfra"},
+                    {"display_name": "OpenAI Whisper", "value": "openai"},
+                    {"display_name": "Custom Whisper API", "value": "custom"}
+                ]
+            },
+            {
+                "key": "TranscriptionAPIKey",
+                "display_name": "Transcription API Key",
+                "type": "text",
+                "default": "",
+                "help_text": "API key for the transcription service (e.g. DeepInfra token or OpenAI API key). Required when transcription is enabled."
+            },
+            {
+                "key": "TranscriptionServiceURL",
+                "display_name": "Custom Transcription API URL",
+                "type": "text",
+                "default": "",
+                "help_text": "Full URL for custom Whisper API endpoint (e.g. http://localhost:8000/v1/audio/transcriptions). Only used when provider is 'Custom Whisper API'."
+            },
+            {
+                "key": "TranscriptionModel",
+                "display_name": "Transcription Model",
+                "type": "text",
+                "default": "openai/whisper-large-v3-turbo",
+                "help_text": "Model identifier sent to the API. DeepInfra: openai/whisper-large-v3-turbo or openai/whisper-large-v3. OpenAI: whisper-1. Custom: depends on your deployment."
+            },
+            {
+                "key": "TranscriptionLanguage",
+                "display_name": "Transcription Language",
+                "type": "text",
+                "default": "",
+                "help_text": "ISO 639-1 language hint (e.g. en, ru, kk, de). Leave empty for automatic language detection."
+            },
+            {
+                "key": "TranscriptionMaxDurationSeconds",
+                "display_name": "Transcription Max Duration (seconds)",
+                "type": "text",
+                "default": "300",
+                "help_text": "Voice messages longer than this will not be transcribed (to control API costs). Default: 300 (5 minutes). Set 0 for no limit."
+            },
+            {
+                "key": "AutoTranscribe",
+                "display_name": "Auto-Transcribe on Send",
+                "type": "bool",
+                "default": "false",
+                "help_text": "When enabled, voice messages are automatically transcribed when sent (instead of requiring a manual button press). May increase API costs."
+            }
+        ]
+    }
+}
