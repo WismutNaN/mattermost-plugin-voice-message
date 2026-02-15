@@ -1,10 +1,8 @@
 PLUGIN_ID := com.scientia.voice-message
 PLUGIN_VERSION := 2.0.1
 BUNDLE := $(PLUGIN_ID)-$(PLUGIN_VERSION).tar.gz
-
 GO ?= go
 GOFLAGS ?= -trimpath
-
 PLATFORMS := linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64
 
 .PHONY: all server webapp dist server-dev dev deploy clean
@@ -21,53 +19,39 @@ ifeq ($(OS),Windows_NT)
   define RM_RF
 	$(PS) "if (Test-Path -LiteralPath '$(1)') { Remove-Item -LiteralPath '$(1)' -Recurse -Force }"
   endef
-
   define MKDIR_P
 	$(PS) "New-Item -ItemType Directory -Force '$(1)' | Out-Null"
   endef
-
   define CP_FILE
 	$(PS) "if (-not (Test-Path -LiteralPath '$(1)')) { Write-Error 'Missing file: $(1)'; exit 1 }; Copy-Item -LiteralPath '$(1)' -Destination '$(2)' -Force"
   endef
-
-  # Supports wildcards like server/dist/*
   define CP_GLOB
 	$(PS) "Copy-Item -Path \"$(1)\" -Destination \"$(2)\" -Force"
   endef
-
-  # PowerShell env WITHOUT "$env:" (make eats "$e" -> "nv")
   define GO_BUILD
 	$(PS) "Set-Item -Path Env:CGO_ENABLED -Value '0'; Set-Item -Path Env:GOOS -Value '$(1)'; Set-Item -Path Env:GOARCH -Value '$(2)'; & '$(GO)' build $(GOFLAGS) -o '$(3)' ./server"
   endef
-
   define TAR_GZ
-	$(PS) "if (-not (Test-Path -LiteralPath 'dist')) { Write-Error 'dist folder not found'; exit 1 }; $$t = Get-Command tar.exe -ErrorAction SilentlyContinue; if (-not $$t) { $$t = Get-Command tar -ErrorAction SilentlyContinue }; if (-not $$t) { Write-Error 'tar not found in PATH (need Windows tar.exe or bsdtar)'; exit 1 }; Set-Location 'dist'; & $$t.Source -czvf '$(BUNDLE)' '$(PLUGIN_ID)'"
+	$(PS) "Push-Location 'dist'; tar.exe -czvf '$(BUNDLE)' '$(PLUGIN_ID)'; Pop-Location"
   endef
-
 else
   DEVNULL := /dev/null
-
   define RM_RF
 	rm -rf $(1)
   endef
-
   define MKDIR_P
 	mkdir -p $(1)
   endef
-
   define CP_FILE
 	test -f $(1)
 	cp -f $(1) $(2)
   endef
-
   define CP_GLOB
 	cp -f $(1) $(2)
   endef
-
   define GO_BUILD
 	CGO_ENABLED=0 GOOS=$(1) GOARCH=$(2) $(GO) build $(GOFLAGS) -o $(3) ./server
   endef
-
   define TAR_GZ
 	cd dist && tar -czvf $(BUNDLE) $(PLUGIN_ID)
   endef
@@ -106,17 +90,15 @@ dist: server webapp
 	@$(call MKDIR_P,dist/$(PLUGIN_ID)/server/dist)
 	@$(call MKDIR_P,dist/$(PLUGIN_ID)/webapp/dist)
 	@$(call MKDIR_P,dist/$(PLUGIN_ID)/assets)
-
 	@$(call CP_FILE,plugin.json,dist/$(PLUGIN_ID)/)
 	@$(call CP_FILE,assets/icon.svg,dist/$(PLUGIN_ID)/assets/)
 	@$(call CP_GLOB,server/dist/*,dist/$(PLUGIN_ID)/server/dist/)
 	@$(call CP_FILE,webapp/dist/main.js,dist/$(PLUGIN_ID)/webapp/dist/)
-
 	@$(call TAR_GZ)
 	@echo
 	@echo "✅  dist/$(BUNDLE)"
 
-# Host-only build (dev) — distinct name to avoid collision with dist outputs
+# Host-only build (dev)
 HOST_OS := $(shell $(GO) env GOOS)
 HOST_ARCH := $(shell $(GO) env GOARCH)
 HOST_EXT := $(if $(filter windows,$(HOST_OS)),.exe,)

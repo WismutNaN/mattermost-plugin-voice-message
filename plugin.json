@@ -2,7 +2,7 @@
     "id": "com.scientia.voice-message",
     "name": "Voice Message",
     "description": "Record and send voice messages in Mattermost with optional AI transcription.",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "homepage_url": "https://github.com/WismutNaN/mattermost-plugin-voice-message/",
     "support_url": "https://github.com/WismutNaN/mattermost-plugin-voice-message/issues",
     "icon_path": "assets/icon.svg",
