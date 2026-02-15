@@ -31,8 +31,10 @@ ifeq ($(OS),Windows_NT)
   define GO_BUILD
 	$(PS) "Set-Item -Path Env:CGO_ENABLED -Value '0'; Set-Item -Path Env:GOOS -Value '$(1)'; Set-Item -Path Env:GOARCH -Value '$(2)'; & '$(GO)' build $(GOFLAGS) -o '$(3)' ./server"
   endef
+  # Use pack.go to create tar.gz with correct Unix permissions (0755 on binaries).
+  # Windows tar.exe does NOT preserve Unix execute bits, which causes "permission denied" on Linux.
   define TAR_GZ
-	$(PS) "Push-Location 'dist'; tar.exe -czvf '$(BUNDLE)' '$(PLUGIN_ID)'; Pop-Location"
+	$(GO) run pack.go
   endef
 else
   DEVNULL := /dev/null
@@ -95,8 +97,6 @@ dist: server webapp
 	@$(call CP_GLOB,server/dist/*,dist/$(PLUGIN_ID)/server/dist/)
 	@$(call CP_FILE,webapp/dist/main.js,dist/$(PLUGIN_ID)/webapp/dist/)
 	@$(call TAR_GZ)
-	@echo
-	@echo "✅  dist/$(BUNDLE)"
 
 # Host-only build (dev)
 HOST_OS := $(shell $(GO) env GOOS)
